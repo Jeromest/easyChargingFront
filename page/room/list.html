@@ -1,0 +1,407 @@
+<div class="layuimini-container layuimini-page-anim">
+
+    <div class="layui-row layui-col-space10">
+        <div class="layui-col-md9">
+            <!-- 1. 楼栋 -->
+            <div class="layuimini-main">
+                <div style="height:270px; margin: 30px" id="silk-building">
+                </div>
+            </div>
+        </div>
+
+        <div class="layui-col-md3">
+            <div class="layuimini-main">
+                <div id="buildingStatusEcharts" style="height:330px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="layui-row layui-col-space10">
+        <div class="layui-col-md3">
+            <div class="layuimini-main">
+                <ul class="silk-floor">
+                </ul>
+            </div>
+        </div>
+        <div class="layui-col-md9">
+            <div class="layuimini-main" style="min-height: 500px">
+                <ul class="silk-room">
+                    <li>
+                        <p style="border-radius: 15px;">充电桩1</p>
+                        <!-- 4. 充电桩 -->
+                        <ul class="silk-bed">
+                            <li style="border-radius: 15px;">yi</li>
+                            <li style="border-radius: 15px;">er</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    layui.use(['form', 'table', 'miniPage', 'miniAdmin', 'element', 'axios', 'echarts'], function() {
+        var $ = layui.jquery,
+            form = layui.form,
+            table = layui.table,
+            miniAdmin = layui.miniAdmin,
+            axios = layui.axios,
+            echarts = layui.echarts,
+            miniPage = layui.miniPage;
+
+
+        var buildingIdForDevice;
+
+        /**
+         * @silkTag 
+         */
+        function loadBuilding() {
+            axios.post('building/query', {}).then(function(response) {
+                console.log(response.data);
+
+                response.data.forEach(item => {
+                    let dynamicContentButton =
+                        '<button class="layui-btn layui-btn-primary layui-btn-radius silk-building" key=' + item.id + '>' +
+                        '<i class="layui-icon layui-icon-home"></i>' + item.buildingName +
+                        '</small></button>\n'; // 动态按钮内容（Key中为自定义属性）
+
+                    let dynamicContentButtonObj = $(dynamicContentButton); // 转成对象
+
+
+                    dynamicContentButtonObj.click(function() {
+                        $(this).siblings().addClass('layui-btn-primary'); // 点击按钮后改变颜色
+                        $(this).removeClass('layui-btn-primary'); // 点击按钮后改变颜色
+                        loadFloor($(this).attr("key")); // 加载当前楼栋层数
+                        buildingIdForDevice = $(this).attr("key");
+                    });
+
+                    $('#silk-building').append(dynamicContentButtonObj);
+                })
+                $('#silk-building button:last').trigger('click');
+            }).catch(function(error) {
+                layer.msg(error);
+            });
+        }
+
+        loadBuilding();
+
+
+
+
+        var chartDom = document.getElementById('buildingStatusEcharts');
+        var myChart = echarts.init(chartDom);
+        var option;
+
+        option = {
+            tooltip: {
+                formatter: '{a} <br/>{b} : {c}%'
+            },
+            series: [{
+                name: '充电桩使用率',
+                type: 'gauge',
+                progress: {
+                    show: true
+                },
+                detail: {
+                    valueAnimation: true,
+                    formatter: '{value}'
+                },
+                data: []
+            }]
+        };
+
+        myChart.setOption(option);
+
+        // echarts 窗口缩放自适应
+        window.onresize = function() {
+            myChart.resize();
+        }
+
+
+        /**
+         * @silkTag 
+         */
+        function loadFloor(buildingId) {
+            axios.get('building/occupancy_rate_and_gender?buildingId=' + buildingId).then(function(response) {
+                // console.log(buildingId, '充电桩使用率：', response.data[0]);
+                let liverGender = response.data[1];
+                let echartsColor = '';
+                if (liverGender === 0) {
+                    echartsColor = "#FFB6C1";
+                } else {
+                    echartsColor = "#87CEFA";
+                }
+                myChart.setOption({
+                    series: [{
+                        data: [{
+                            // value: response.data[0],
+                            value: "23",
+                            name: '使用率 %',
+                            itemStyle: {
+                                color: echartsColor
+                            }
+                        }]
+                    }]
+                });
+            }).catch(function(error) {
+                layer.msg(error);
+            })
+
+            axios.get('building/query_floor_num?id=' + buildingId).then(function(response) {
+
+                // jQuery移除子节点
+                $('.silk-floor').empty();
+                for (let floor = 1; floor <= response.data.floorNum; floor++) {
+                    // 动态按钮内容（Key中为自定义属性）
+                    let dynamicContentButton = `
+                        <li style="border-radius: 15px;" key='${floor}'>
+                            ${floor}区域
+                            <span>
+                                <button class="layui-icon layui-icon-add-circle" title="添加充电桩"></button>
+                            </span>
+                        </li>
+                    `;
+
+                    // 转成对象
+                    let dynamicContentButtonObj = $(dynamicContentButton);
+
+
+                    dynamicContentButtonObj.click(function() {
+                        $(this).siblings().removeClass('silk-floor-bg');
+                        $(this).addClass('silk-floor-bg');
+                        loadDevice($(this).attr("key"), buildingIdForDevice);
+                    });
+
+
+                    dynamicContentButtonObj.find('button').click(function(event) {
+                        // 阻止冒泡
+                        event.stopPropagation();
+
+                        // 添加事件
+                        let content = miniPage.getHrefContent('device/addDevice.html');
+                        let index = layer.open({
+                            title: '添加充电桩',
+                            type: 1,
+                            shade: 0.3,
+                            maxmin: true, // 显示最大最小化的按钮
+                            shadeClose: true,
+                            area: ['600px', '600px'], // 原始值 area: [openWH[0] + 'px', openWH[1] + 'px'],
+                            offset: 'auto', // 原始值 offset: [openWH[2] + 'px', openWH[3] + 'px'],
+                            content: content,
+
+                            end: function() {
+                                dynamicContentButtonObj.trigger('click');
+                            }
+                        });
+
+                        // 为表单赋值
+                        form.val('addDeviceForm', {
+                            buildingId: buildingId,
+                            floor: dynamicContentButtonObj.attr("key"),
+                        })
+
+                        $(window).on("resize", function() {
+                            layer.full(index);
+                        });
+                    });
+                    $('.silk-floor').append(dynamicContentButtonObj);
+                }
+                $('.silk-floor li:first').trigger('click'); // 页面加载后，默认选中第一个
+            }).catch(function(error) {
+                layer.msg(error);
+            });
+        }
+
+
+        /**
+         * @silkTag 
+         */
+        function loadDevice(floorId, buildingIdForDevice) {
+            axios.post('device/query', {
+                "floor": floorId,
+                "buildingId": buildingIdForDevice
+            }).then(function(response) {
+                $('.silk-room').empty();
+
+                response.data.forEach(item => {
+                    console.log(item.brand);
+
+                    let type
+                    if (item.deviceType === 0) {
+                        type = ' ';
+                    } else if (item.deviceType === 1) {
+                        type = '&nbsp&nbsp<a><span class="layui-badge layui-bg-silk-yellowgreen">维护中</span></a>';
+                    } else if (item.deviceType === 2) {
+                        type = '&nbsp&nbsp<a><span class="layui-badge layui-bg-silk-gold">已停用</span></a>';
+                    } else if (item.deviceType === 3) {
+                        type = '&nbsp&nbsp<a><span class="layui-badge layui-bg-silk-skyblue">空闲</span></a>';
+                    } else if (item.deviceType === 4) {
+                        type = '&nbsp&nbsp<a><span class="layui-badge layui-bg-silk-coral">使用中</span></a>';
+                    } else if (item.deviceType === 5) {
+                        type = '&nbsp&nbsp<a><span class="layui-badge layui-bg-silk-super-light-gray">杂物间</span></a>';
+                    }
+
+                    let capacity
+                    if (item.deviceCapacity === 0) {
+                        capacity = '&nbsp&nbsp<a><span class="layui-badge layui-bg-silk-super-light-gray">空闲</span></a> ';
+                    } else {
+                        capacity = '';
+                    }
+
+
+                    let html = `
+                        <li>
+                            <p key='${item.id}'>
+                                ${item.brand}${type}${capacity}
+                                <span>
+                                    <button class="layui-icon layui-icon-add-circle silk-bed-add" title="添加充电桩"></button>
+                                    <button class="layui-icon layui-icon-delete silk-device-delete" title="删除充电桩"></button>
+                                </span>
+                            </p>
+                            <ul class="silk-bed">
+                                <li></li>
+                                <li></li>
+                                <li></li>
+                                <li></li>
+                                <li></li>
+                            </ul>
+                        </li>
+                    `; // 动态按钮内容（Key中为自定义属性）
+
+                    let htmlObj = $(html); // 转成对象
+
+
+                    htmlObj.find('p').click(function() {
+                        $(this).siblings().toggle(300);
+                        loadBed($(this).attr("key"), $(this).siblings());
+                    });
+
+
+                    htmlObj.find('.silk-bed-add').click(function(event) {
+                        event.stopPropagation();
+                        let deviceId = htmlObj.find('p').attr("key"); // 获取device的ID
+                        axios.get('device/capacity_plus_one?id=' + deviceId).then(function(response) {
+                            layer.msg(response.msg);
+                            loadBed(htmlObj.find('p').attr("key"), htmlObj.find('p').siblings());
+                        }).catch(function(error) {
+                            layer.msg(error);
+                        });
+                    });
+
+
+                    htmlObj.find('.silk-device-delete').click(function(event) {
+                        event.stopPropagation();
+                        layer.confirm("确定要删除吗？", function(index) {
+                            let deviceIds = htmlObj.find('p').attr("key"); // 获取device的ID
+                            axios.get('device/delete?ids=' + deviceIds).then(function(response) {
+                                layer.msg(response.msg);
+                                htmlObj.remove(); // 前端移除该对象
+                                layer.close(index);
+                            }).catch(function(error) {
+                                layer.msg(error);
+                            });
+                        })
+                    });
+                    $('.silk-room').append(htmlObj);
+                });
+                console.log(response.data);
+            }).catch(function(error) {
+                layer.msg(error);
+            });
+        }
+
+
+        /**
+         * @silkTag 
+         */
+        function loadBed(deviceId, bedObj) {
+            console.log(deviceId, bedObj);
+
+
+            var liverAmount;
+
+            axios.get('device/query_liver_amount?id=' + deviceId).then(function(response) {
+                liverAmount = response.data;
+
+                axios.post('device/query', {
+                    "id": deviceId
+                }).then(function(response) {
+                    bedObj.empty();
+                    console.log(response.data[0].deviceCapacity);
+
+                    for (let bedNo = 1; bedNo <= response.data[0].deviceCapacity; bedNo++) {
+                        let html;
+
+                        if (bedNo <= liverAmount) {
+                            html = `
+                        <li>
+
+                            <img class="silk-bed-image" src="../images/bed_active.png"/>
+                            <p style="margin-top: 15px;">充电桩${bedNo}</p>
+                            
+                        </li>
+                    `;
+
+                            let htmlObj = $(html);
+
+
+                            htmlObj.find('.silk-bed-delete').click(function(event) {
+                                event.stopPropagation();
+
+                                layer.confirm("确定要删除吗？", function(index) {
+                                    axios.get('device/capacity_minus_one?id=' + deviceId).then(function(response) {
+                                        htmlObj.remove();
+                                        layer.msg(response.msg);
+                                        layer.close(index);
+                                        loadBed(deviceId, bedObj);
+                                    }).catch(function(error) {
+                                        layer.msg(error);
+                                    });
+                                })
+
+                            });
+                            bedObj.append(htmlObj);
+                        } else {
+                            html = `
+                        <li>
+
+                            <img class="silk-bed-image" src="../images/bed.png"/>
+                            <p style="margin-top: 15px;">充电桩${bedNo}</p>
+                            <p style="margin-top: 0px;">
+                                <i class="layui-icon layui-icon-delete silk-bed-delete" title="删除充电桩"></i>
+                                <!--<i class="layui-icon layui-icon-edit" title="编辑充电桩"></i>-->
+                            </p>
+                        </li>
+                    `;
+
+                            let htmlObj = $(html);
+
+
+                            htmlObj.find('.silk-bed-delete').click(function(event) {
+                                event.stopPropagation();
+
+                                layer.confirm("确定要删除吗？", function(index) {
+                                    axios.get('device/capacity_minus_one?id=' + deviceId).then(function(response) {
+                                        htmlObj.remove();
+                                        layer.msg(response.msg);
+                                        layer.close(index);
+                                        loadBed(deviceId, bedObj);
+                                    }).catch(function(error) {
+                                        layer.msg(error);
+                                    });
+                                })
+                            });
+                            bedObj.append(htmlObj);
+                        }
+                    }
+                }).catch(function(error) {
+                    layer.msg(error);
+                });
+            }).catch(function(error) {
+                layer.msg(error);
+            });
+        }
+    });
+</script>

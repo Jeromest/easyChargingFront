@@ -1,0 +1,98 @@
+<div class="layuimini-container layuimini-page-anim">
+    <div id="container"></div>
+</div>
+
+<style>
+    body,
+    html,
+    #container {
+        overflow: hidden;
+        width: 1350px;
+        height: 610px;
+        margin: 0;
+        font-family: "微软雅黑";
+        font-weight: 9999;
+    }
+</style>
+
+<script src="https://api.map.baidu.com/api?type=webgl&v=1.0&ak=C1ylW4jDHTSWnBBF6FCWMDlRQILIWtFH"></script>
+<!-- <script src="https://unpkg.com/axios/dist/axios.min.js"></script> -->
+<script>
+    layui.use(['miniPage','miniAdmin','element', 'layer', 'axios'], function () {
+        var $ = layui.jquery,
+            miniAdmin = layui.miniAdmin,
+            miniPage = layui.miniPage,
+            axios = layui.axios,
+            layer = layui.layer;
+
+        
+        function loadMap() {
+            var map = new BMapGL.Map('container');
+            map.centerAndZoom(new BMapGL.Point(108.948024, 34.263161), 12);
+            map.enableScrollWheelZoom(true);
+
+
+            var points = [
+                [108.97706498120115, 34.254886031176525],
+                [108.93174637768553, 34.23161362532094],
+                [108.91698349926756, 34.14442689318963],
+                [108.9449428460388, 34.14144334299251],
+                [108.93015850994871, 34.17638688969439],
+                [108.95296801541136, 34.15305728442102],
+                [109.05607212994383, 34.32594052501582],
+                [108.98672093365477, 34.20166222547376],
+                [108.87694348309324, 34.20208814937088],
+                [108.86921872113035, 34.229058945028285],
+                [108.88913144085691, 34.289073437529545],
+                [108.93942822430418, 34.37582709007729],
+                [108.9814852616577, 34.393110391164896],
+                [108.99676312420652, 34.3549973903361],
+                [108.90389431927488, 34.36973458449788],
+                [108.85282505963133, 34.29814991467171],
+                [109.04431332562254, 34.22125249730089],
+                [108.95968426678465,34.299426215623924],
+                [108.89754284832762, 34.08701059191415],
+                [108.8115404984741, 34.12709241549038],
+                [108.98573388073729, 34.140946074388836],
+                [109.03199662182615, 34.09077795458205],
+                [108.80471695874022, 34.30843067675878],
+                [108.77077092144773, 34.20996735330228],
+                [109.0983008286743, 34.197331877047255]
+            ]
+
+            console.log(11111111111111)
+
+            // 请求point数据
+            axios.get("/api/map").then(res => {
+                console.log(res);
+                for (var i = 0; i < res.length; i++) {
+                    points = res[i];
+                    console.log(res[i])
+                }
+            })
+
+            console.log(22222222222222)
+
+
+            console.log("共有点标记：", points.length);
+            // console.log(points[1][0]);
+            // console.log(points[1][1]);
+
+
+            // function loadPoint() {
+                for (var i = 0; i < points.length; i++) {
+                    var marker = new BMapGL.Marker(new BMapGL.Point(points[i][0], points[i][1]));
+                    // console.log(marker)
+                    map.addOverlay(marker);
+                }
+            // }
+
+            // 加载标记点
+            loadPoint();
+        }    
+        // 加载地图
+        loadMap();
+    });
+
+    
+</script>

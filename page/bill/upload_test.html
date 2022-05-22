@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+
+<body>
+    <div class="layuimini-main">
+        <h1>导入EXCEL</h1>
+        <button type="button" class="layui-btn" id="test3" name="fileName"><i class="layui-icon"></i>上传文件</button>
+    </div>
+</body>
+
+<script>
+    layui.use(['form', 'table', 'axios', 'miniAdmin', 'upload', 'storage'], function () {
+        let form = layui.form,
+            layer = layui.layer,
+            table = layui.table,
+            axios = layui.axios,
+            miniAdmin = layui.miniAdmin,
+            upload = layui.upload,
+            storage = layui.storage,
+            $ = layui.$;
+
+
+
+        // var req = new XMLHttpRequest();
+        // req.open('GET', document.location, false);
+        // req.send(null);
+        // var headers = req.getAllResponseHeaders().toLowerCase();
+        // alert(headers.token);
+        console.log(storage.getToken());
+
+
+
+        upload.render({
+            elem: '#test3'
+            // ,headers: {token: storage.getToken()}
+            ,url: 'bill/upload' //改成您自己的上传接口
+            ,method: 'post'
+            ,accept: 'file' //普通文件
+            ,done: function(res){
+                layer.msg('上传成功');
+                console.log(res);
+            }
+        });
+
+        /**
+         * 初始化表单，要加上，不然刷新部分组件可能会不加载
+         */
+        form.render();
+
+        // 当前弹出层，防止ID被覆盖
+        let parentIndex = layer.index;
+
+    });
+
+</script>
+
+</html>
